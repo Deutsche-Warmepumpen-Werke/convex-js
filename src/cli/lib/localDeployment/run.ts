@@ -96,6 +96,14 @@ export async function runLocalBackend(
     selfHostedEventTag(args.deploymentKind),
     path.join(deploymentDir, "convex_local_backend.sqlite3"),
   ];
+  const convexOrigin = process.env.CONVEX_LOCAL_BACKEND_ORIGIN;
+  if (convexOrigin !== undefined) {
+    commandArgs.push("--convex-origin", convexOrigin);
+  }
+  const convexSite = process.env.CONVEX_LOCAL_BACKEND_SITE;
+  if (convexSite !== undefined) {
+    commandArgs.push("--convex-site", convexSite);
+  }
   if (args.isLatestVersion) {
     // CLI args that were added in later versions of backend go here instead of above
     // since the CLI may run older versions of backend (e.g. when upgrading).
