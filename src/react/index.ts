@@ -82,6 +82,7 @@ export * from "./ConvexAuthState.js";
 export * from "./hydration.js";
 /* @internal */
 export { useSubscription } from "./use_subscription.js";
+export type { WriteConflictRetryOptions } from "../common/write_conflict_retry.js";
 export {
   type ReactMutation,
   type ReactAction,

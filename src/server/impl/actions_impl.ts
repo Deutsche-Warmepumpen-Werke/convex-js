@@ -13,8 +13,47 @@ import {
   isWriteConflictRetryableError,
   retryOnWriteConflict,
   validateWriteConflictRetryOptions,
+  ValidatedWriteConflictRetryOptions,
   WriteConflictRetryOptions,
 } from "../../common/write_conflict_retry.js";
+import type { GenericActionCtx } from "../registration.js";
+import type { GenericDataModel } from "../data_model.js";
+
+type RunMutation = GenericActionCtx<GenericDataModel>["runMutation"];
+
+// Keyed by each action's own runMutation so ctx types stay identical to upstream.
+const configurableRunMutations = new WeakMap<
+  RunMutation,
+  (options: ValidatedWriteConflictRetryOptions) => RunMutation
+>();
+
+/**
+ * Return a `ctx.runMutation` that uses the given write conflict retry policy.
+ *
+ * `ActionCtx.runMutation` retries a mutation once, after 2 seconds, when Convex
+ * reports a final write conflict. Use this helper to change that policy for
+ * specific calls:
+ *
+ * ```typescript
+ * await withRetry(ctx.runMutation, { maxWriteConflictRetries: 0 })(
+ *   internal.orders.markPaid,
+ *   { id },
+ * );
+ * ```
+ *
+ * Any other function, such as `MutationCtx.runMutation` (retried with its
+ * parent transaction) or a test double, is returned unchanged.
+ *
+ * @public
+ */
+export function withRetry<F extends RunMutation>(
+  runMutation: F,
+  options: WriteConflictRetryOptions,
+): F {
+  const validated = validateWriteConflictRetryOptions(options);
+  const configure = configurableRunMutations.get(runMutation);
+  return configure === undefined ? runMutation : (configure(validated) as F);
+}
 
 function syscallArgs(
   requestId: string,
@@ -28,6 +67,33 @@ function syscallArgs(
     version,
     requestId,
   };
+}
+
+function runMutationWithRetry(
+  requestId: string,
+  retryOptions: ValidatedWriteConflictRetryOptions,
+): RunMutation {
+  const runMutation = async (
+    mutation:
+      | FunctionReference<"mutation", "public" | "internal">
+      | FunctionReference_future<"mutation", "public" | "internal">,
+    args?: Record<string, Value>,
+  ): Promise<any> => {
+    const result = await retryOnWriteConflict(
+      () =>
+        performAsyncSyscall(
+          "1.0/actions/mutation",
+          syscallArgs(requestId, mutation, args),
+        ),
+      retryOptions,
+      isWriteConflictRetryableError,
+    );
+    return jsonToConvexOwned(result);
+  };
+  configurableRunMutations.set(runMutation, (options) =>
+    runMutationWithRetry(requestId, options),
+  );
+  return runMutation;
 }
 
 export function setupActionCalls(requestId: string) {
@@ -44,26 +110,10 @@ export function setupActionCalls(requestId: string) {
       );
       return jsonToConvexOwned(result);
     },
-    runMutation: async (
-      mutation:
-        | FunctionReference<"mutation", "public" | "internal">
-        | FunctionReference_future<"mutation", "public" | "internal">,
-      args?: Record<string, Value>,
-      options?: WriteConflictRetryOptions,
-    ): Promise<any> => {
-      const writeConflictRetryOptions =
-        validateWriteConflictRetryOptions(options);
-      const result = await retryOnWriteConflict(
-        () =>
-          performAsyncSyscall(
-            "1.0/actions/mutation",
-            syscallArgs(requestId, mutation, args),
-          ),
-        writeConflictRetryOptions,
-        isWriteConflictRetryableError,
-      );
-      return jsonToConvexOwned(result);
-    },
+    runMutation: runMutationWithRetry(
+      requestId,
+      validateWriteConflictRetryOptions(undefined),
+    ),
     runAction: async (
       action:
         | FunctionReference<"action", "public" | "internal">

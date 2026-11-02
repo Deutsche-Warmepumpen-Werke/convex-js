@@ -64,7 +64,7 @@ test("React watch observes local result removal without subscribing again", asyn
     });
     const query = makeFunctionReference<"query">("messages:list");
     const watch = client.watchQuery(query, {});
-    expect(watch.hasLocalQueryResult()).toBe(false);
+    expect(watch.hasLocalQueryResult?.()).toBe(false);
     let resolveUpdate!: () => void;
     const updated = new Promise<void>((resolve) => {
       resolveUpdate = resolve;
@@ -104,13 +104,13 @@ test("React watch observes local result removal without subscribing again", asyn
         ],
       });
       await updated;
-      expect(watch.hasLocalQueryResult()).toBe(true);
+      expect(watch.hasLocalQueryResult?.()).toBe(true);
 
       let resolveRemoval!: () => void;
       const removed = new Promise<void>((resolve) => {
         resolveRemoval = resolve;
       });
-      watch.onLocalQueryResultRemoved(resolveRemoval);
+      watch.onLocalQueryResultRemoved?.(resolveRemoval);
       unsubscribe();
       const removeMessage = await receive();
       expect(removeMessage).toMatchObject({
@@ -134,7 +134,7 @@ test("React watch observes local result removal without subscribing again", asyn
         modifications: [{ type: "QueryRemoved", queryId: add.queryId }],
       });
       await removed;
-      expect(watch.hasLocalQueryResult()).toBe(false);
+      expect(watch.hasLocalQueryResult?.()).toBe(false);
     } finally {
       await client.close();
     }

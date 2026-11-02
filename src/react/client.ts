@@ -66,12 +66,9 @@ export interface ReactMutation<
    * Execute the mutation on the server, returning a `Promise` of its return value.
    *
    * @param args - Arguments for the mutation to pass up to the server.
-   * @param options - Options for this mutation invocation.
    * @returns The return value of the server-side function call.
    */
-  (
-    ...args: ArgsAndOptions<Mutation, WriteConflictRetryOptions>
-  ): Promise<FunctionReturnType<Mutation>>;
+  (...args: OptionalRestArgs<Mutation>): Promise<FunctionReturnType<Mutation>>;
 
   /**
    * Define an optimistic update to apply as part of this mutation.
@@ -100,6 +97,20 @@ export interface ReactMutation<
         ? "Optimistic update handlers must be synchronous"
         : {}),
   ): ReactMutation<Mutation>;
+
+  /**
+   * Set the write conflict retry policy for this mutation.
+   *
+   * By default, a mutation retries once, after 2 seconds, when Convex reports
+   * a final write conflict. Pass `{ maxWriteConflictRetries: 0 }` to disable
+   * that retry. Any optimistic update stays configured.
+   *
+   * @param options - The retry policy. It replaces any earlier policy.
+   * @returns A new `ReactMutation` with the policy configured.
+   *
+   * @public
+   */
+  withRetry(options: WriteConflictRetryOptions): ReactMutation<Mutation>;
 }
 
 // Exported only for testing.
@@ -109,17 +120,15 @@ export function createMutation(
     | FunctionReference_future<"mutation">,
   client: ConvexReactClient,
   update?: OptimisticUpdate<any>,
+  retry?: WriteConflictRetryOptions,
 ): ReactMutation<any> {
-  function mutation(
-    args?: Record<string, Value>,
-    options?: WriteConflictRetryOptions,
-  ): Promise<unknown> {
+  function mutation(args?: Record<string, Value>): Promise<unknown> {
     assertNotAccidentalArgument(args);
 
     return client.mutation(mutationReference, args, {
       optimisticUpdate: update,
-      maxWriteConflictRetries: options?.maxWriteConflictRetries,
-      writeConflictRetryDelayMs: options?.writeConflictRetryDelayMs,
+      maxWriteConflictRetries: retry?.maxWriteConflictRetries,
+      writeConflictRetryDelayMs: retry?.writeConflictRetryDelayMs,
     });
   }
   mutation.withOptimisticUpdate = function withOptimisticUpdate(
@@ -132,7 +141,12 @@ export function createMutation(
         )}`,
       );
     }
-    return createMutation(mutationReference, client, optimisticUpdate);
+    return createMutation(mutationReference, client, optimisticUpdate, retry);
+  };
+  mutation.withRetry = function withRetry(
+    options: WriteConflictRetryOptions,
+  ): ReactMutation<any> {
+    return createMutation(mutationReference, client, update, options);
   };
   return mutation as ReactMutation<any>;
 }
@@ -210,9 +224,13 @@ export interface Watch<T> {
    * Unlike {@link react.Watch.localQueryResult}, this method does not read or
    * throw the stored result.
    *
+   * Watches from {@link ConvexReactClient.watchQuery} always implement this.
+   * It is optional so `Watch` implementations written for upstream Convex
+   * still typecheck.
+   *
    * @public
    */
-  hasLocalQueryResult(): boolean;
+  hasLocalQueryResult?(): boolean;
 
   /**
    * Invoke `callback` once after a currently present local success or error is
@@ -221,9 +239,13 @@ export interface Watch<T> {
    * If no local result is present when this method is called, `callback` is not
    * invoked and the returned function is a no-op.
    *
+   * Watches from {@link ConvexReactClient.watchQuery} always implement this.
+   * It is optional so `Watch` implementations written for upstream Convex
+   * still typecheck.
+   *
    * @public
    */
-  onLocalQueryResultRemoved(callback: () => void): () => void;
+  onLocalQueryResultRemoved?(callback: () => void): () => void;
 
   /**
    * Get the current {@link browser.QueryJournal} for this query.

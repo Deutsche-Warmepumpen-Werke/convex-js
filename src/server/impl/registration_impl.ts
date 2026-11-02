@@ -46,18 +46,6 @@ import {
   setupActionMeta,
 } from "./meta_impl.js";
 
-function transactionLimitsForMutationRunMutation(options: any) {
-  if (
-    options?.maxWriteConflictRetries !== undefined ||
-    options?.writeConflictRetryDelayMs !== undefined
-  ) {
-    throw new Error(
-      "Write conflict retry options are only supported for client mutations and ActionCtx.runMutation calls. MutationCtx.runMutation runs within the parent mutation transaction and is retried with the parent mutation.",
-    );
-  }
-  return options?.transactionLimits;
-}
-
 async function invokeMutation<
   F extends (ctx: GenericMutationCtx<GenericDataModel>, ...args: any) => any,
 >(func: F, argsStr: string, visibility: FunctionVisibility) {
@@ -84,12 +72,7 @@ async function invokeMutationValue<
         ? runUdf("snapshotQuery", reference, args, options?.transactionLimits)
         : runUdf("query", reference, args, options?.transactionLimits),
     runMutation: (reference: any, args?: any, options?: any) =>
-      runUdf(
-        "mutation",
-        reference,
-        args,
-        transactionLimitsForMutationRunMutation(options),
-      ),
+      runUdf("mutation", reference, args, options?.transactionLimits),
   };
   const result = await invokeFunction(func, mutationCtx, args as any);
   validateReturnValue(result);

@@ -111,8 +111,10 @@ export {
 export {
   getServiceToken,
   getServiceUrl,
+  withRetry,
   type ServiceName,
 } from "./impl/actions_impl.js";
+export type { WriteConflictRetryOptions } from "../common/write_conflict_retry.js";
 export {
   onNodePoolRetirement,
   type NodePoolRetirementDeadline,

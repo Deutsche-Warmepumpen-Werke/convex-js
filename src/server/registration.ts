@@ -29,7 +29,6 @@ import {
   ObjectType,
   PropertyValidators,
 } from "../values/validator.js";
-import type { WriteConflictRetryOptions } from "../common/write_conflict_retry.js";
 import { Id } from "../values/value.js";
 import {
   GenericDataModel,
@@ -355,9 +354,8 @@ export interface GenericActionCtx<DataModel extends GenericDataModel> {
    *
    * Each `runMutation` call is a separate write transaction. Consider using
    * an {@link internalMutation} to prevent users from calling it directly.
-   * If Convex reports a final write conflict, this call retries once by
-   * default. Pass `{ maxWriteConflictRetries: 0 }` as the final argument to
-   * disable this retry.
+   * If Convex reports a final write conflict, this call retries once after
+   * 2 seconds. Use {@link withRetry} to change that policy.
    *
    * @example
    * ```typescript
@@ -374,7 +372,7 @@ export interface GenericActionCtx<DataModel extends GenericDataModel> {
       | FunctionReference_future<"mutation", "public" | "internal">,
   >(
     mutation: Mutation,
-    ...args: ArgsAndOptions<Mutation, WriteConflictRetryOptions>
+    ...args: OptionalRestArgs<Mutation>
   ): Promise<FunctionReturnType<Mutation>>;
 
   /**

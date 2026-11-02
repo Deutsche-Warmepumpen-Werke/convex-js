@@ -113,11 +113,16 @@ text, malformed JSON, and unknown short codes never grant this classification.
 
 The client and action context retry a mutation once after a terminal
 optimistic-concurrency failure, waiting two seconds by default. Callers can
-change the count and delay or disable the outer retry. HTTP retries require a
-completed JSON HTTP 503 with exact code `OptimisticConcurrencyControlFailure`
-and a string message. Transport loss, timeouts, incomplete bodies, UDF errors
-and matching text alone never authorize replay. Action-context callbacks retain
-their existing internal/public terminal-conflict message classifier.
+change the count and delay or disable the outer retry through
+`ReactMutation.withRetry(options)`, `withRetry(ctx.runMutation, options)` from
+`convex/server`, or the options objects that client `mutation` methods and
+`fetchMutation` already take. No callable gains a positional parameter, so
+`ReactMutation`, `useMutation` results and both ctx `runMutation` signatures
+match upstream. HTTP retries require a completed JSON HTTP 503 with exact code
+`OptimisticConcurrencyControlFailure` and a string message. Transport loss,
+timeouts, incomplete bodies, UDF errors and matching text alone never authorize
+replay. Action-context callbacks retain their existing internal/public
+terminal-conflict message classifier.
 
 This change is derived from
 [convex/convex-js PR 170](https://github.com/convex/convex-js/pull/170). Remove
@@ -160,7 +165,9 @@ deferred query set.
 reading or throwing it. `Watch.onLocalQueryResultRemoved()` observes removal
 without subscribing to or executing the query. These APIs let applications gate
 one-shot retries and resumed subscriptions on the actual sync transition instead
-of fixed delays or access to internal client state.
+of fixed delays or access to internal client state. Both methods are optional on
+the `Watch` type, so `Watch` implementations written for upstream still
+typecheck. `ConvexReactClient.watchQuery` always provides them.
 
 ### Default context reuse during bundling
 
