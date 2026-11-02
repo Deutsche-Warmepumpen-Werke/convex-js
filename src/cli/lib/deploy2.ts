@@ -1,3 +1,4 @@
+import type { NativeResidentActivation } from "./deployApi/nativeResident.js";
 import { Context } from "../../bundler/context.js";
 import {
   changeSpinner,
@@ -360,6 +361,7 @@ export async function finishPush(
     deploymentType?: DeploymentType;
     message: string | null;
     forceNodeCutover: boolean;
+    nativeResident?: NativeResidentActivation | undefined;
   },
 ): Promise<FinishPushDiff> {
   changeSpinner("Finalizing push...");
@@ -372,6 +374,7 @@ export async function finishPush(
     startPush,
     dryRun: options.dryRun,
     message: options.message,
+    nativeResident: options.nativeResident,
     forceNodeCutover:
       (!options.dryRun && options.forceNodeCutover) || undefined,
   };
@@ -477,6 +480,7 @@ export async function deployToDeployment(
     allowUnstagingSchema: boolean;
     message: string | null;
     forceNodeCutover?: boolean | undefined;
+    nativeResident?: NativeResidentActivation | undefined;
   },
 ) {
   const { url, adminKey } = credentials;
@@ -535,6 +539,7 @@ export async function deployToDeployment(
     warnOnSlowSchemaValidation: true,
     message: options.message,
     forceNodeCutover: !!options.forceNodeCutover,
+    nativeResident: options.nativeResident,
   };
   showSpinner(`Deploying to ${url}...${options.dryRun ? " [dry run]" : ""}`);
   await runPush(ctx, pushOptions);
